@@ -1,10 +1,17 @@
-﻿using ChatBot.Services;
+﻿using ChatBot.Repositories;
+using ChatBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-var host = Host.CreateApplicationBuilder();
+var builder = Host.CreateDefaultBuilder();
 
-host.Services.AddHostedService<OrchestratorService>();
-host.Services.AddSingleton<OpenAiService>();
+builder.ConfigureServices(services =>
+{
+    services.AddHostedService<OrchestratorService>();
+    services.AddSingleton<OpenAiService>();
+    services.AddHttpClient<SupabaseRepository>();
+});
 
-host.Build().Run();
+var app = builder.Build();
+
+await app.RunAsync();
