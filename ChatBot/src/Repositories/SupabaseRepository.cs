@@ -19,8 +19,8 @@ public class SupabaseRepository(SupabaseContext db) : ISupabaseRepository
 
     public async Task<ChatContext?> GetChatContextByDate(Guid userId, DateTime date)
     {
-        var start = date.Date;
-        var end = start.AddDays(1);
+        var start = date.Date.ToUniversalTime();
+        var end = start.AddDays(1).ToUniversalTime();
         
         return await db.ChatContexts.FirstOrDefaultAsync(x => x.UserId == userId 
                                                               && x.CreatedAt <= end 
@@ -49,5 +49,15 @@ public class SupabaseRepository(SupabaseContext db) : ISupabaseRepository
             .Where(ce => ce.ChatContextId == contextId)
             .OrderByDescending(ce => ce.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<User?> GetUserById(Guid authUserId)
+    {
+        return await db.Users.FirstOrDefaultAsync(x => x.AuthUserId == authUserId);
+    }
+
+    public async Task<UserProfile?> GetUserProfileById(Guid userId)
+    {
+        return await db.UserProfiles.FirstOrDefaultAsync(x => x.UserId == userId);
     }
 }

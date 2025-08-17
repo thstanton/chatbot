@@ -1,128 +1,144 @@
 using ChatBot.Extensions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using SystemPrompt = ChatBot.Models.SystemPrompt;
 
 namespace ChatBot.Services;
 
-public class OrchestratorService(OpenAiService openAiService, ISupabaseRepository repository, IConfiguration configuration)
+public class OrchestratorService(OpenAiService openAiService, ISupabaseRepository repository, IConfiguration configuration, ILogger<OrchestratorService> logger)
 {
-    public ChatContext? CurrentChatContext { get; set; }
-    public List<ChatEvent> CurrentChatEvents { get; set; } = [];
-    public List<ChatMessage> CurrentChatMessages { get; set; } = [];
+    private ChatContext? CurrentChatContext { get; set; }
+    private List<ChatMessage> CurrentChatMessages { get; set; } = [];
     
-    public async Task InitialiseChatSession(Guid userId)
+    private readonly ILogger<OrchestratorService> _logger = logger;
+    
+    private readonly OpenAiService _aiService = openAiService;
+    
+    private readonly IConfiguration _configuration =  configuration;
+    
+    private readonly ISupabaseRepository _repository = repository;
+    
+    public async Task InitialiseChatSession(Guid authUserId)
     {
-        var existingChatContext = await repository.GetChatContextByDate(userId, DateTime.Today);
+        var user = await _repository.GetUserById(authUserId);
 
+        if (user == null)
+        {
+            _logger.LogWarning("User {UserId} not found", authUserId);
+            throw new UnauthorizedAccessException();
+        }
+        
+        var existingChatContext = await _repository.GetChatContextByDate(user.Id, DateTime.Today);
+        
+        CurrentChatContext = await GetOrCreateChatContext(user, existingChatContext);
+            
+        CurrentChatMessages.Add(new SystemChatMessage(CurrentChatContext.SystemPrompt));
+
+        var contextChatEvents = await _repository.GetContextChatEvents(CurrentChatContext.Id);
+
+        if (contextChatEvents.Count != 0)
+        {
+            var chatMessages = contextChatEvents.ToChatMessages();
+
+            CurrentChatMessages.AddRange(chatMessages);
+        }
+    }
+
+    private async Task<ChatContext> GetOrCreateChatContext(User user, ChatContext? existingChatContext)
+    {
         if (existingChatContext != null)
         {
-            CurrentChatContext = existingChatContext;
-            CurrentChatEvents = await repository.GetContextChatEvents(existingChatContext.Id);
-            
-            CurrentChatMessages.Add(new SystemChatMessage(CurrentChatContext.SystemPrompt));
-
-            foreach (var chatEvent in CurrentChatEvents)
-            {
-                switch (chatEvent.Sender)
-                {
-                    case Sender.User:
-                        CurrentChatMessages.Add(new UserChatMessage(chatEvent.Content));
-                        break;
-                    case Sender.Assistant:
-                        CurrentChatMessages.Add(new AssistantChatMessage(chatEvent.Content));
-                        break;
-                    case Sender.System:
-                        CurrentChatMessages.Add(new SystemChatMessage(chatEvent.Content));
-                        break;
-                    case Sender.Tool:
-                        CurrentChatMessages.Add(new ToolChatMessage(chatEvent.Content));
-                        break;
-                    default:
-                        continue;
-                }
-            }
-            return;
+            return existingChatContext;
         }
 
-        var newContext = await InitialiseNewChatContext(userId);
-        
-        CurrentChatContext = await repository.CreateChatContext(newContext.UserId, newContext.SystemPrompt);
+        try
+        {
+            var newContext = await InitialiseNewChatContext(user);
+            
+            return await _repository.CreateChatContext(newContext.UserId, newContext.SystemPrompt);
+        }
+        catch (Exception e)
+        {
+            _logger.LogError("Error creating new chat context: {message}", e.Message);
+            throw;
+        }
     }
 
-    private async Task<ChatContext> InitialiseNewChatContext(Guid userId)
+    private async Task<ChatContext> InitialiseNewChatContext(User user)
     {
-        var mostRecentChatContext = await repository.GetMostRecentChatContext(userId);
-        var user = GetUserFromConfiguration();
-        var userProfile = GetUserProfileFromConfiguration();
-        var basePrompt = configuration.GetSection("AgentConfig").GetValue<string>("basePrompt")!;
+        var userProfile = await _repository.GetUserProfileById(user.Id);
+        var basePrompt = _configuration.GetSection("AgentConfig").GetValue<string>("basePrompt")!;
+        
+        var mostRecentChatContext = await _repository.GetMostRecentChatContext(user.Id);
         var chatSummary = await SummariseChatContext(mostRecentChatContext);
 
-        return new ChatContext()
-        {
-            UserId = userId,
-            SystemPrompt = ConstructSystemPrompt(user, userProfile, basePrompt, chatSummary),
-        };
-    }
-
-    private static string ConstructSystemPrompt(User user, UserProfile userProfile, string basePrompt,
-        string? chatSummary)
-    {
-        var userPrompt =
-            $"Your client is {user.DisplayName}, a {userProfile.DateOfBirth.GetAge()} year old {userProfile.Sex.ToString()}." +
-            $"Their height is {userProfile.Height}{userProfile.HeightUnit}. " +
-            $"Their current goal is {userProfile.Goal}.";
-
-        var prompt = basePrompt;
+        var systemPrompt = new SystemPrompt(user, userProfile, basePrompt, chatSummary).Message;
         
-        prompt += userPrompt;
-
-        if (chatSummary != null)
-        {
-            prompt += $"\nPrevious conversation summary: {chatSummary}";
-        }
-        
-        return prompt;
+        return await _repository.CreateChatContext(user.Id, systemPrompt);
     }
 
     private async Task<string?> SummariseChatContext(ChatContext? chatContext)
     {
         if (chatContext == null) return null;
         
-        var chatEvents = await repository.GetContextChatEvents(chatContext.Id);
+        var chatEvents = await _repository.GetContextChatEvents(chatContext.Id);
+
+        if (chatEvents.Count == 0) return "No chats yet";
+        
         var chatEventsPromptString = chatEvents.ToPromptString();
         
         var prompt = $"Summarise the following chat events for use in a system prompt: {chatEventsPromptString}";
 
-        return await openAiService.GetCompletionAsync(prompt);
+        return await _aiService.GetCompletionAsync(prompt);
     }
 
-    public async IAsyncEnumerable<string> HandleUserInputAsync(string message)
+    public async IAsyncEnumerable<string> HandleAssistantResponse()
     {
-        
-    }
-
-    private UserProfile GetUserProfileFromConfiguration()
-    {
-        var devUser = configuration.GetSection("DevUser");
-        
-        var dateOfBirth = DateTime.TryParse(devUser.GetValue<string>("dateOfBirth"), out var birthday) ? birthday : DateTime.MinValue;
-
-        return new UserProfile()
+        if (CurrentChatContext == null)
         {
-            DateOfBirth = dateOfBirth,
-            Height = devUser.GetValue<int>("height"),
-            HeightUnit = devUser.GetValue<string>("heightUnit") ?? "cm",
-            Sex = (Sex)devUser.GetValue<int>("sex"),
-            Goal = devUser.GetValue<string>("goal") ?? string.Empty,
-        };
+            _logger.LogError("Current Chat Context was not initialised");
+            yield break;
+        }
+        
+        var messages = CurrentChatMessages.ToArray();
+
+        var response = _aiService.RespondToMessageAsync(messages);
+        
+        var completedResponse = new StringBuilder();
+
+        await foreach (var chunk in response)
+        {
+            completedResponse.Append(chunk);
+            yield return chunk;
+        }
+        
+        CurrentChatMessages.Add(new AssistantChatMessage(completedResponse.ToString()));
+        
+        await _repository.AddChatEvent(new ChatEvent()
+        {
+            ChatContextId = CurrentChatContext.Id,
+            Agent = AgentId.Orchestrator,
+            Sender = Sender.Assistant,
+            Content = completedResponse.ToString(),
+        });
     }
 
-    private User GetUserFromConfiguration()
+    public async Task<ChatEvent?> HandleUserInput(string message)
     {
-        var devUser = configuration.GetSection("DevUser");
-
-        return new User()
+        if (CurrentChatContext == null)
         {
-            DisplayName = devUser.GetValue<string>("displayName") ?? string.Empty,
-        };
+            _logger.LogError("Current Chat Context was not initialised");
+            return null;
+        }
+        
+        CurrentChatMessages.Add(new UserChatMessage(message));
+
+        return await _repository.AddChatEvent(new ChatEvent()
+        {
+            ChatContextId = CurrentChatContext.Id,
+            Agent = AgentId.Orchestrator,
+            Sender = Sender.User,
+            Content = message,
+        });
     }
 }

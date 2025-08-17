@@ -10,7 +10,16 @@ builder.ConfigureServices(services =>
     services.AddSingleton<OpenAiService>();
     services.AddDbContext<SupabaseContext>(options =>
     {
-        options.UseNpgsql(Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING"));
+        var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
+        options
+            .UseNpgsql(
+                connectionString, 
+                o => o
+                    .MapEnum<AgentId>("agent_id")
+                    .MapEnum<Sender>("sender_enum")
+                    .MapEnum<Sex>("sex_enum")
+                )
+            .UseSnakeCaseNamingConvention();
     });
 });
 

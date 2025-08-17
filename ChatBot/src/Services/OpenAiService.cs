@@ -24,9 +24,9 @@ public class OpenAiService
         return response == null ? string.Empty : response.Content[0].Text;
     }
 
-    public async IAsyncEnumerable<string> RespondToMessageAsync(string message)
+    public async IAsyncEnumerable<string> RespondToMessageAsync(ChatMessage[] messages)
     {
-        var response = _client.CompleteChatStreamingAsync(message);
+        var response = _client.CompleteChatStreamingAsync(messages);
 
         await foreach (var responseMessage in response)
         {

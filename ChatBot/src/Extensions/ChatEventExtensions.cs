@@ -22,4 +22,31 @@ public static class ChatEventExtensions
 
         return sb.ToString();
     }
+
+    public static List<ChatMessage> ToChatMessages(this IEnumerable<ChatEvent> chatEvents)
+    {
+        var messages = new List<ChatMessage>();
+
+        foreach (var chatEvent in chatEvents)
+        {
+            switch (chatEvent.Sender)
+            {
+                case Sender.User:
+                    messages.Add(new UserChatMessage(chatEvent.Content));
+                    break;
+                case Sender.Assistant:
+                    messages.Add(new AssistantChatMessage(chatEvent.Content));
+                    break;
+                case Sender.System:
+                    messages.Add(new SystemChatMessage(chatEvent.Content));
+                    break;
+                case Sender.Tool:
+                    messages.Add(new ToolChatMessage(chatEvent.Content));
+                    break;
+                default:
+                    continue;
+            }
+        }
+        return messages;
+    }
 }

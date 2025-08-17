@@ -7,4 +7,6 @@ public interface ISupabaseRepository
     Task<ChatContext?> GetMostRecentChatContext(Guid userId);
     Task<ChatEvent> AddChatEvent(ChatEvent chatEvent);
     Task<List<ChatEvent>> GetContextChatEvents(Guid contextId);
+    Task<User?> GetUserById(Guid authUserId);
+    Task<UserProfile?> GetUserProfileById(Guid userId);
 }
