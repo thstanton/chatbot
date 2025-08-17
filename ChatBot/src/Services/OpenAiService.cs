@@ -1,4 +1,4 @@
-using OpenAI.Chat;
+using ChatBot.Extensions;
 
 namespace ChatBot.Services;
 
@@ -17,21 +17,24 @@ public class OpenAiService
         return response;
     }
 
-    public async Task RespondToMessageAsync(string message)
+    public async Task<string> GetCompletionAsync(string prompt)
+    {
+        ChatCompletion response = await _client.CompleteChatAsync(prompt);
+        
+        return response == null ? string.Empty : response.Content[0].Text;
+    }
+
+    public async IAsyncEnumerable<string> RespondToMessageAsync(string message)
     {
         var response = _client.CompleteChatStreamingAsync(message);
-
-        Console.Write($"[ASSISTANT]: ");
 
         await foreach (var responseMessage in response)
         {
             if (responseMessage.ContentUpdate.Count > 0)
             {
-                Console.Write(responseMessage.ContentUpdate[0].Text);
+                yield return responseMessage.ContentUpdate[0].Text;
             }
         }
-
-        Console.WriteLine();
     }
 
 }

@@ -1,15 +1,17 @@
-﻿using ChatBot.Repositories;
-using ChatBot.Services;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using ChatBot.Contexts;
 
 var builder = Host.CreateDefaultBuilder();
 
 builder.ConfigureServices(services =>
 {
-    services.AddHostedService<OrchestratorService>();
+    services.AddHostedService<ConsoleService>();
+    services.AddScoped<ISupabaseRepository, SupabaseRepository>();
+    services.AddScoped<OrchestratorService>();
     services.AddSingleton<OpenAiService>();
-    services.AddHttpClient<SupabaseRepository>();
+    services.AddDbContext<SupabaseContext>(options =>
+    {
+        options.UseNpgsql(Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING"));
+    });
 });
 
 var app = builder.Build();
