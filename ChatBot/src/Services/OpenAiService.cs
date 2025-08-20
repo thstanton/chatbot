@@ -1,8 +1,6 @@
-using ChatBot.Extensions;
-
 namespace ChatBot.Services;
 
-public class OpenAiService
+public class OpenAiService() : IOpenAiService
 {
     private static readonly string ApiKeyCredential = Environment.GetEnvironmentVariable("OPENAI_KEY")!;
 
@@ -20,7 +18,7 @@ public class OpenAiService
     public async Task<string> GetCompletionAsync(string prompt)
     {
         ChatCompletion response = await _client.CompleteChatAsync(prompt);
-        
+
         return response == null ? string.Empty : response.Content[0].Text;
     }
 

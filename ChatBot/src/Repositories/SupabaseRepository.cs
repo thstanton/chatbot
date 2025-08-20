@@ -2,28 +2,36 @@ using ChatBot.Contexts;
 
 namespace ChatBot.Repositories;
 
-public class SupabaseRepository(SupabaseContext db) : ISupabaseRepository
+public class SupabaseRepository(SupabaseContext db, ILogger<SupabaseRepository> logger) : ISupabaseRepository
 {
+    private readonly ILogger<SupabaseRepository> _logger = logger;
+
     public async Task<ChatContext> CreateChatContext(Guid userId, string systemPrompt)
     {
         var result = await db.ChatContexts.AddAsync(new ChatContext
         {
             UserId = userId,
             SystemPrompt = systemPrompt,
+            CreatedAt = DateTime.UtcNow
         });
-        
+
         await db.SaveChangesAsync();
-        
+
         return result.Entity;
     }
 
     public async Task<ChatContext?> GetChatContextByDate(Guid userId, DateTime date)
     {
-        var start = date.Date.ToUniversalTime();
-        var end = start.AddDays(1).ToUniversalTime();
-        
-        return await db.ChatContexts.FirstOrDefaultAsync(x => x.UserId == userId 
-                                                              && x.CreatedAt <= end 
+        _logger.LogInformation($"Method entry - date: {date:yyyy-MM-dd HH:mm:ss} (Kind: {date.Kind})");
+
+        var start = date.Date;
+        _logger.LogInformation($"After assignment - start: {start:yyyy-MM-dd HH:mm:ss} (Kind: {start.Kind})");
+        _logger.LogInformation($"Are they equal? {date == start}");
+
+        var end = start.AddDays(1);
+
+        return await db.ChatContexts.FirstOrDefaultAsync(x => x.UserId == userId
+                                                              && x.CreatedAt <= end
                                                               && x.CreatedAt >= start);
     }
 
@@ -37,9 +45,9 @@ public class SupabaseRepository(SupabaseContext db) : ISupabaseRepository
     public async Task<ChatEvent> AddChatEvent(ChatEvent chatEvent)
     {
         var result = await db.ChatEvents.AddAsync(chatEvent);
-        
+
         await db.SaveChangesAsync();
-        
+
         return result.Entity;
     }
 

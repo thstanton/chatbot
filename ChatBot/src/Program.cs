@@ -1,19 +1,23 @@
 ﻿using ChatBot.Contexts;
 
-var builder = Host.CreateDefaultBuilder();
+var builder = Host.CreateDefaultBuilder(args);
+
+Console.WriteLine($"env: {Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")}");
 
 builder.ConfigureServices(services =>
 {
-    services.AddHostedService<ConsoleService>();
+    services.AddSingleton<IOpenAiService, OpenAiService>();
+    services.AddTransient<IOrchestratorService, OrchestratorService>();
     services.AddScoped<ISupabaseRepository, SupabaseRepository>();
-    services.AddScoped<OrchestratorService>();
-    services.AddSingleton<OpenAiService>();
-    services.AddDbContext<SupabaseContext>(options =>
+    services.AddScoped<ChatSessionService>();
+    services.AddHostedService<ConsoleService>();
+
+    services.AddDbContextPool<SupabaseContext>(options =>
     {
         var connectionString = Environment.GetEnvironmentVariable("SUPABASE_CONNECTION_STRING");
         options
             .UseNpgsql(
-                connectionString, 
+                connectionString,
                 o => o
                     .MapEnum<AgentId>("agent_id")
                     .MapEnum<Sender>("sender_enum")

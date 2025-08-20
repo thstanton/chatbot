@@ -1,12 +1,23 @@
 namespace ChatBot.Services;
 
-public class ConsoleService(OrchestratorService orchestratorService) : BackgroundService
+public class ConsoleService(IServiceProvider serviceProvider, ILogger<ConsoleService> logger) : BackgroundService
 {
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         Console.WriteLine("Welcome Human!");
+        
+        using var scope = _serviceProvider.CreateScope();
 
-        await orchestratorService.InitialiseChatSession(new Guid("bcdc81cc-98ae-44df-826f-284b53b19e93"));
+        var chatSessionService = scope.ServiceProvider.GetService<ChatSessionService>();
+
+        if (chatSessionService == null)
+        {
+            logger.LogWarning("Could not find orchestrator service.");
+            return;
+        }
+
+        await chatSessionService.InitialiseChatSession(new Guid("bcdc81cc-98ae-44df-826f-284b53b19e93"));
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -17,11 +28,11 @@ public class ConsoleService(OrchestratorService orchestratorService) : Backgroun
 
             if (userInput.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
             
-            await orchestratorService.HandleUserInput(userInput);
+            await chatSessionService.HandleUserInput(userInput);
 
             Console.Write("[ASSISTANT]: ");
 
-            await foreach (var chunk in orchestratorService.HandleAssistantResponse().WithCancellation(stoppingToken))
+            await foreach (var chunk in chatSessionService.HandleAssistantResponse().WithCancellation(stoppingToken))
             {
                 Console.Write(chunk);
             }

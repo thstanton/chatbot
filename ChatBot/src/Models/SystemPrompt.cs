@@ -1,5 +1,3 @@
-using ChatBot.Extensions;
-
 namespace ChatBot.Models;
 
 public class SystemPrompt
