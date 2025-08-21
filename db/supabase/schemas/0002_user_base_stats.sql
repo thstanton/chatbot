@@ -13,3 +13,7 @@ create table "user_profiles" (
 );
 
 alter table user_profiles enable row level security;
+
+create trigger update_timestamp
+    before insert or update on user_profiles
+    for each row execute procedure update_timestamp_function();

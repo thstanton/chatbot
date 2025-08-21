@@ -22,7 +22,7 @@ builder.ConfigureServices(services =>
                     .MapEnum<AgentId>("agent_id")
                     .MapEnum<Sender>("sender_enum")
                     .MapEnum<Sex>("sex_enum")
-                )
+            )
             .UseSnakeCaseNamingConvention();
     });
 });

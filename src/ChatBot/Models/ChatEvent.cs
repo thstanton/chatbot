@@ -12,9 +12,9 @@ public class ChatEvent
 
 public enum Sender
 {
-    User, 
-    Assistant, 
-    System, 
+    User,
+    Assistant,
+    System,
     Tool
 }
 
@@ -24,4 +24,3 @@ public enum AgentId
     Nutritionist,
     Orchestrator
 }
-    

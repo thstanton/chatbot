@@ -7,3 +7,7 @@ create table public.users (
 );
 
 alter table public.users enable row level security;
+
+create trigger update_timestamp
+    before insert or update on public.users
+    for each row execute procedure update_timestamp_function();

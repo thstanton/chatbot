@@ -3,10 +3,11 @@ namespace ChatBot.Services;
 public class ConsoleService(IServiceProvider serviceProvider, ILogger<ConsoleService> logger) : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Console.WriteLine("Welcome Human!");
-        
+        Console.WriteLine("Running debug build");
+
         using var scope = _serviceProvider.CreateScope();
 
         var chatSessionService = scope.ServiceProvider.GetService<ChatSessionService>();
@@ -27,16 +28,14 @@ public class ConsoleService(IServiceProvider serviceProvider, ILogger<ConsoleSer
             if (string.IsNullOrEmpty(userInput)) continue;
 
             if (userInput.Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
-            
+
             await chatSessionService.HandleUserInput(userInput);
 
             Console.Write("[ASSISTANT]: ");
 
             await foreach (var chunk in chatSessionService.HandleAssistantResponse().WithCancellation(stoppingToken))
-            {
                 Console.Write(chunk);
-            }
-            
+
             Console.WriteLine();
         }
     }

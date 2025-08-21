@@ -9,13 +9,9 @@ public static class ChatEventExtensions
         foreach (var chat in chatEvents)
         {
             if (includeTimestamp)
-            {
                 sb.Append($"[{chat.Sender.ToString().ToUpper()} | {chat.CreatedAt:HH:mm}] ");
-            }
             else
-            {
                 sb.Append($"[{chat.Sender.ToString().ToUpper()}] ");
-            }
 
             sb.AppendLine(chat.Content);
         }
@@ -28,7 +24,6 @@ public static class ChatEventExtensions
         var messages = new List<ChatMessage>();
 
         foreach (var chatEvent in chatEvents)
-        {
             switch (chatEvent.Sender)
             {
                 case Sender.User:
@@ -46,7 +41,7 @@ public static class ChatEventExtensions
                 default:
                     continue;
             }
-        }
+
         return messages;
     }
 }

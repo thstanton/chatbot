@@ -2,8 +2,6 @@ namespace ChatBot.Models;
 
 public class SystemPrompt
 {
-    public string Message { get; set; }
-    
     public SystemPrompt(User user, UserProfile? userProfile, string basePrompt,
         string? chatSummary)
     {
@@ -19,11 +17,10 @@ public class SystemPrompt
             prompt += userPrompt;
         }
 
-        if (chatSummary != null)
-        {
-            prompt += $"\nPrevious conversation summary: {chatSummary}";
-        }
-        
+        if (chatSummary != null) prompt += $"\nPrevious conversation summary: {chatSummary}";
+
         Message = prompt;
     }
+
+    public string Message { get; set; }
 }

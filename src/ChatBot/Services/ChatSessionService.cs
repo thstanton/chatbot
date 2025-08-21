@@ -1,20 +1,20 @@
 namespace ChatBot.Services;
 
-public class ChatSessionService(ISupabaseRepository repository,
+public class ChatSessionService(
+    ISupabaseRepository repository,
     IConfiguration configuration,
     ILogger<ChatSessionService> logger,
     IOrchestratorService orchestratorService)
 {
-    private ChatContext? CurrentChatContext { get; set; }
-    private List<ChatMessage> CurrentChatMessages { get; set; } = [];
+    private readonly IConfiguration _configuration = configuration;
 
     private readonly ILogger<ChatSessionService> _logger = logger;
 
-    private readonly IConfiguration _configuration = configuration;
+    private readonly IOrchestratorService _orchestratorService = orchestratorService;
 
     private readonly ISupabaseRepository _repository = repository;
-
-    private readonly IOrchestratorService _orchestratorService = orchestratorService;
+    private ChatContext? CurrentChatContext { get; set; }
+    private List<ChatMessage> CurrentChatMessages { get; } = [];
 
     public async Task InitialiseChatSession(Guid authUserId)
     {
@@ -44,16 +44,11 @@ public class ChatSessionService(ISupabaseRepository repository,
 
     private async Task<ChatContext> GetOrCreateChatContext(User user, ChatContext? existingChatContext)
     {
-        if (existingChatContext != null)
-        {
-            return existingChatContext;
-        }
+        if (existingChatContext != null) return existingChatContext;
 
         try
         {
-            var newContext = await InitialiseNewChatContext(user);
-
-            return await _repository.CreateChatContext(newContext.UserId, newContext.SystemPrompt);
+            return await InitialiseNewChatContext(user);
         }
         catch (Exception e)
         {
@@ -68,7 +63,9 @@ public class ChatSessionService(ISupabaseRepository repository,
         var basePrompt = _configuration.GetSection("AgentConfig").GetValue<string>("basePrompt")!;
 
         var mostRecentChatContext = await _repository.GetMostRecentChatContext(user.Id);
-        var mostRecentChats = mostRecentChatContext != null ? await _repository.GetContextChatEvents(mostRecentChatContext.Id) : [];
+        var mostRecentChats = mostRecentChatContext != null
+            ? await _repository.GetContextChatEvents(mostRecentChatContext.Id)
+            : [];
         var chatSummary = await _orchestratorService.SummariseChatContext(mostRecentChats);
 
         var systemPrompt = new SystemPrompt(user, userProfile, basePrompt, chatSummary).Message;
@@ -98,12 +95,12 @@ public class ChatSessionService(ISupabaseRepository repository,
 
         CurrentChatMessages.Add(new AssistantChatMessage(completedResponse.ToString()));
 
-        await _repository.AddChatEvent(new ChatEvent()
+        await _repository.AddChatEvent(new ChatEvent
         {
             ChatContextId = CurrentChatContext.Id,
             Agent = AgentId.Orchestrator,
             Sender = Sender.Assistant,
-            Content = completedResponse.ToString(),
+            Content = completedResponse.ToString()
         });
     }
 
@@ -117,12 +114,12 @@ public class ChatSessionService(ISupabaseRepository repository,
 
         CurrentChatMessages.Add(new UserChatMessage(message));
 
-        return await _repository.AddChatEvent(new ChatEvent()
+        return await _repository.AddChatEvent(new ChatEvent
         {
             ChatContextId = CurrentChatContext.Id,
             Agent = AgentId.Orchestrator,
             Sender = Sender.User,
-            Content = message,
+            Content = message
         });
     }
 }

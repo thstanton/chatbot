@@ -22,11 +22,7 @@ public class SupabaseRepository(SupabaseContext db, ILogger<SupabaseRepository> 
 
     public async Task<ChatContext?> GetChatContextByDate(Guid userId, DateTime date)
     {
-        _logger.LogInformation($"Method entry - date: {date:yyyy-MM-dd HH:mm:ss} (Kind: {date.Kind})");
-
         var start = date.Date;
-        _logger.LogInformation($"After assignment - start: {start:yyyy-MM-dd HH:mm:ss} (Kind: {start.Kind})");
-        _logger.LogInformation($"Are they equal? {date == start}");
 
         var end = start.AddDays(1);
 
@@ -38,8 +34,8 @@ public class SupabaseRepository(SupabaseContext db, ILogger<SupabaseRepository> 
     public async Task<ChatContext?> GetMostRecentChatContext(Guid userId)
     {
         return await db.ChatContexts.Where(x => x.UserId == userId)
-                                        .OrderByDescending(x => x.CreatedAt)
-                                        .FirstOrDefaultAsync();
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<ChatEvent> AddChatEvent(ChatEvent chatEvent)

@@ -6,4 +6,3 @@ public interface IOpenAiService
     Task<string> GetCompletionAsync(string prompt);
     IAsyncEnumerable<string> RespondToMessageAsync(ChatMessage[] messages);
 }
-

@@ -1,12 +1,10 @@
-using SystemPrompt = ChatBot.Models.SystemPrompt;
-
 namespace ChatBot.Services;
 
-public class OrchestratorService(IOpenAiService openAiService, ILogger<OrchestratorService> logger) : IOrchestratorService
+public class OrchestratorService(IOpenAiService openAiService, ILogger<OrchestratorService> logger)
+    : IOrchestratorService
 {
-    private readonly ILogger<OrchestratorService> _logger = logger;
-
     private readonly IOpenAiService _aiService = openAiService;
+    private readonly ILogger<OrchestratorService> _logger = logger;
 
     public async Task<string?> SummariseChatContext(List<ChatEvent> chatEvents)
     {
@@ -23,9 +21,6 @@ public class OrchestratorService(IOpenAiService openAiService, ILogger<Orchestra
     {
         var response = _aiService.RespondToMessageAsync(chatMessages);
 
-        await foreach (var chunk in response)
-        {
-            yield return chunk;
-        }
+        await foreach (var chunk in response) yield return chunk;
     }
 }

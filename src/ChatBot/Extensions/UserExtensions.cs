@@ -8,7 +8,7 @@ public static class UserExtensions
         var age = today.Year - dateOfBirth.Year;
 
         // If birthday hasn't occurred yet this year, subtract 1
-        if (dateOfBirth.Date > today.AddYears(-age)) 
+        if (dateOfBirth.Date > today.AddYears(-age))
             age--;
 
         return age;
